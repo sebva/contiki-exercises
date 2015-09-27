@@ -1,0 +1,8 @@
+#include "dev/sht11-sensor.h"
+
+
+SENSORS_ACTIVATE(sht11_sensor);
+printf("temperature: ");
+print_temperature_binary_to_float(temp);
+printf("\n");
+SENSORS_DEACTIVATE(sht11_sensor);
