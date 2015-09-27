@@ -9,19 +9,50 @@
 #include "node-id.h" /* get the variable node_id that holds the own node id */
 #include "dev/leds.h"
 /*---------------------------------------------------------------------------*/
+PROCESS(led_blink_process, "LED Blink Timer Process");
 PROCESS(hello_world_process, "Hello World Timer Process");
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(hello_world_process, ev, data)
+
+PROCESS_THREAD(led_blink_process, ev, data)
 {
   PROCESS_BEGIN();
-  //static struct etimer et;
-  //etimer_set(&et, CLOCK_SECOND*4);
-  //PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-  printf("Hello, world\n");
+  static struct etimer timer_blink, timer_wait;
+  // Blink pattern every 4 seconds
+
+  while(1)
+  {
+	  leds_on(LEDS_BLUE);
+	  etimer_set(&timer_blink, CLOCK_SECOND * 1);
+	  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer_blink));
+
+	  leds_off(LEDS_BLUE);
+	  etimer_set(&timer_wait, CLOCK_SECOND * 3);
+	  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer_wait));
+  }
+
   PROCESS_END();
 }
 
-AUTOSTART_PROCESSES(&hello_world_process); // autostart processes (can also be more than one)
+PROCESS_THREAD(hello_world_process, ev, data)
+{
+  PROCESS_BEGIN();
+  static struct etimer timer_startup, timer_wait;
+
+  etimer_set(&timer_startup, CLOCK_SECOND * 30);
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer_startup));
+
+  while(1)
+  {
+	  printf("Hello, world\n");
+	  etimer_set(&timer_wait, CLOCK_SECOND * 10);
+	  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer_wait));
+  }
+
+  PROCESS_END();
+}
+
+// autostart processes (can also be more than one)
+AUTOSTART_PROCESSES(&led_blink_process, &hello_world_process);
 
 
 /* Exercise 1a: compile the Contiki OS and flash the node attached to the PC via USB with
