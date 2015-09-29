@@ -21,25 +21,13 @@ void print_temperature_binary_to_float(uint16_t temp) {
 
 
 static void timerCallback_turnOffLeds();
+static void recv_bc(struct broadcast_conn *c, rimeaddr_t *from);
 static struct ctimer leds_off_timer_send;
 
 /* Timer callback turns off the blue led */
 static void timerCallback_turnOffLeds()
 {
   leds_off(LEDS_BLUE);
-}
-
-
-static void
-recv_bc(struct broadcast_conn *c, rimeaddr_t *from)
-{
-  char helloMessage[50];
-   /* from the packet we have just received, read the data and write it into the
-   * helloMessage character array we have defined above
-   */
-  packetbuf_copyto(helloMessage);
-
-  printf("received '%s' from %d.%d, RSSI=%i\n", helloMessage, from->u8[0], from->u8[1], (int) packetbuf_attr(PACKETBUF_ATTR_RSSI));
 }
 
 
@@ -59,6 +47,9 @@ PROCESS_THREAD(broadcast_rssi_process, ev, data)
   PROCESS_EXITHANDLER(broadcast_close(&bc);)
   PROCESS_BEGIN();
 
+  SENSORS_ACTIVATE(sht11_sensor);
+
+    printf("Starting broadcast\n");
   /* every broadcast has to be initiated with broadcast_open, where the broadcast_conn struct
    * are defined and the pointers to the callback, the function which has to be defined that is
    * going to be called when RECEIVING the broadcast
@@ -70,30 +61,55 @@ PROCESS_THREAD(broadcast_rssi_process, ev, data)
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
     etimer_reset(&et);
-    /* declare 50 bytes example helloMessage */
-    char helloMessage[50];
+
+    // Temperature of 0 means no sensor
+    uint16_t temperature = (node_id % 2 == 0) ? sht11_sensor.value(SHT11_SENSOR_TEMP) : 0;
+
     /* print the contents "NODE %u TEST STRING" with the node id into the helloMessage string */
-    sprintf(helloMessage, "NODE %u TEST STRING", node_id);
+    if (node_id % 2 == 0)
+      sprintf(tm.messageString, "Here is node %u, sending the temperature", node_id);
+    else
+      sprintf(tm.messageString, "Here is node %u, I don't have a sensor", node_id);
+
+    tm.temperature = temperature;
 
     /* prepare the packet to be sent, copy the helloMessage into the packet. For this, we have to
      * give a pointer to the helloMessage byte array as first argument, then the size as the second
      * argument */
-    packetbuf_copyfrom(helloMessage, sizeof(helloMessage));
+    packetbuf_copyfrom(&tm, sizeof(tm));
 
     /* send the packet */
     broadcast_send(&bc);
 
     /* turn on blue led */
     leds_on(LEDS_BLUE);
-    /* set the timer "leds_off_timer" to 1/16 second */
-    ctimer_set(&leds_off_timer_send, CLOCK_SECOND / 16, timerCallback_turnOffLeds, NULL);
+    /* set the timer "leds_off_timer" to 1 second */
+    ctimer_set(&leds_off_timer_send, CLOCK_SECOND, timerCallback_turnOffLeds, NULL);
     printf("sent broadcast message\n");
   }
+
+  SENSORS_DEACTIVATE(sht11_sensor);
+
   PROCESS_END();
 }
 AUTOSTART_PROCESSES(&broadcast_rssi_process);
 
+static void
+recv_bc(struct broadcast_conn *c, rimeaddr_t *from)
+{
+   /* from the packet we have just received, read the data and write it into the
+   * helloMessage character array we have defined above
+   */
+  packetbuf_copyto(&tm);
 
+  if (tm.temperature != 0)
+  {
+    printf("Temperature: ");
+    print_temperature_binary_to_float(tm.temperature);
+    printf("\n");
+  }
+  printf("received '%s' from %d.%d, RSSI=%i\n", tm.messageString, from->u8[0], from->u8[1], (int) packetbuf_attr(PACKETBUF_ATTR_RSSI));
+}
 
 /* Exercise 3a: flash the program to your nodes and observe what happens. Read the code and understand it thoroughly.
  */
