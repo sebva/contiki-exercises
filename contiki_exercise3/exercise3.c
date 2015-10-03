@@ -62,20 +62,19 @@ PROCESS_THREAD(broadcast_rssi_process, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
     etimer_reset(&et);
 
-    // Temperature of 0 means no sensor
+    // Temperature of 0 means no sensor, checked using node_id an even number
     uint16_t temperature = (node_id % 2 == 0) ? sht11_sensor.value(SHT11_SENSOR_TEMP) : 0;
 
-    /* print the contents "NODE %u TEST STRING" with the node id into the helloMessage string */
+    // Send a different message, depending on the existence of a temperature sensor
     if (node_id % 2 == 0)
       sprintf(tm.messageString, "Here is node %u, sending the temperature", node_id);
     else
       sprintf(tm.messageString, "Here is node %u, I don't have a sensor", node_id);
 
+    // Save the temperature into the struct
     tm.temperature = temperature;
 
-    /* prepare the packet to be sent, copy the helloMessage into the packet. For this, we have to
-     * give a pointer to the helloMessage byte array as first argument, then the size as the second
-     * argument */
+    // Copy the temperature struct in the packet buffer
     packetbuf_copyfrom(&tm, sizeof(tm));
 
     /* send the packet */
@@ -97,11 +96,10 @@ AUTOSTART_PROCESSES(&broadcast_rssi_process);
 static void
 recv_bc(struct broadcast_conn *c, rimeaddr_t *from)
 {
-   /* from the packet we have just received, read the data and write it into the
-   * helloMessage character array we have defined above
-   */
+  // Read the incoming data into the static temperatureMessage struct
   packetbuf_copyto(&tm);
 
+  // Temperature = 0 means that we received a message from the sensor without the sht11 sensor
   if (tm.temperature != 0)
   {
     printf("Temperature: ");
