@@ -57,11 +57,13 @@ PROCESS_THREAD(C_PROCESS, ev, data)
   while(1){
 	  if(inc % 10000 == 0) printf("C: i %u\n",inc);
 	  inc++;
+    // Temporarily give the processor to another protothread
+    PROCESS_PAUSE();
   }
   PROCESS_END();
 }
 
-AUTOSTART_PROCESSES(&A_PROCESS, &B_PROCESS); // autostart processes
+AUTOSTART_PROCESSES(&A_PROCESS, &B_PROCESS, &C_PROCESS); // autostart processes
 
 
 /* Exercise 5 (to be solved with ILIAS):
