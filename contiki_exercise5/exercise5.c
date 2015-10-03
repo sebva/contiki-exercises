@@ -19,13 +19,13 @@ PROCESS_THREAD(A_PROCESS, ev, data)
 
   etimer_set(&et, CLOCK_SECOND*10);
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-  uint16_t localVariable = 100;
+  static uint16_t localVariable = 100;
   printf("A: ATTENTION: localVariable = %u",localVariable); printf(" (address=%u)\n", &localVariable);
 
   SENSORS_ACTIVATE(button_sensor);
   while(1){
 	  PROCESS_WAIT_EVENT_UNTIL(ev == sensors_event && data == &button_sensor);
-          printf("A: ATTENTION: localVariable = %u",localVariable); printf(" (address=%u)\n", &localVariable);
+    printf("A: ATTENTION: localVariable = %u",localVariable); printf(" (address=%u)\n", &localVariable);
   }
   SENSORS_DEACTIVATE(button_sensor);
   PROCESS_END();
