@@ -53,6 +53,7 @@ static void recv_uc(struct unicast_conn *c, const rimeaddr_t *from)
   printf(" = %d secs ", (uint16_t)tmReceived.time / CLOCK_SECOND);
   printf("%d millis ", (1000L * ((uint16_t)tmReceived.time  % CLOCK_SECOND)) / CLOCK_SECOND);
   printf("originator = %d\n", tmReceived.originator);
+  printf("rssi = %d\n", (int) packetbuf_attr(PACKETBUF_ATTR_RSSI));
 
 
   if( tmReceived.originator != node_id ){
