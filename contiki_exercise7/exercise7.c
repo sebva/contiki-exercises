@@ -159,7 +159,6 @@ PROCESS_THREAD(shell_broadcast_process, ev, data)
 		packetbuf_clear();
 		packetbuf_copyfrom(copiedData, sizeof(copiedData));
 		/* send the packet using broadcast*/
-		broadcast_open(&bc, BROADCAST_CHANNEL, &broadcast_call);
 		broadcast_send(&bc);
 		printf("sent broadcast message\n");
 	}
@@ -173,7 +172,7 @@ PROCESS(exercise_7_process, "Exercise 7 - Using Shell Commands");
 PROCESS_THREAD(exercise_7_process, ev, data)
 {
   PROCESS_BEGIN();
-
+  broadcast_open(&bc, BROADCAST_CHANNEL, &broadcast_call);
 
   serial_shell_init();
   shell_register_command(&blink_command);
