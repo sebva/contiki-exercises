@@ -72,10 +72,10 @@ static void recv_uc(struct unicast_conn *c, const rimeaddr_t *from)
   leds_on(LEDS_BLUE);
   ctimer_set(&leds_off_timer_send, CLOCK_SECOND / 8, timerCallback_turnOffLeds, NULL);
 
-  /*********************/
-  /* MISSING CODE HERE */
-  /*********************/
-
+  // Exact same code as in the broadcast scenario
+  char receivedString[packetbuf_datalen()];
+  packetbuf_copyto(receivedString);
+  printf("message: '%s'\n\n", receivedString);
 }
 
 // the command to send a unicast message
@@ -102,10 +102,16 @@ PROCESS_THREAD(shell_unicast_process, ev, data)
 
 		/* prepare the packet to be sent, copy the helloMessage into the packet. For this, we have to
 		 * give a pointer to the copiedData byte array as first argument, then the size as the second argument*/
+    packetbuf_clear();
+    packetbuf_copyfrom(copiedData, sizeof(copiedData));
 
-		/*********************/
-		/* MISSING CODE HERE */
-		/*********************/
+    // Prepare the rimeaddr_t structure holding the remote node id
+    rimeaddr_t addr;
+    addr.u8[0] = (char)unicast_receiver_id; // LSB
+    addr.u8[1] = (char)(unicast_receiver_id >> 8); // MSB
+
+    // send the packet using unicast
+    unicast_send(&uc, &addr);
 
 		printf("sent packet to node with id %u\n", unicast_receiver_id);
 	}
@@ -171,8 +177,14 @@ PROCESS_THREAD(shell_broadcast_process, ev, data)
 PROCESS(exercise_7_process, "Exercise 7 - Using Shell Commands");
 PROCESS_THREAD(exercise_7_process, ev, data)
 {
+  // Gracefully close the communication channels at the end
+  PROCESS_EXITHANDLER(unicast_close(&uc); broadcast_close(&bc);)
+
   PROCESS_BEGIN();
+
+  // Open the communication channels to be able to send/receive packets
   broadcast_open(&bc, BROADCAST_CHANNEL, &broadcast_call);
+  unicast_open(&uc, UNICAST_CHANNEL, &unicast_callbacks);
 
   serial_shell_init();
   shell_register_command(&blink_command);
