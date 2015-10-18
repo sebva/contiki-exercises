@@ -39,12 +39,14 @@ static void recv_uc(struct unicast_conn *c, const rimeaddr_t *from);
 static const struct unicast_callbacks unicast_callbacks = {recv_uc};
 static struct unicast_conn uc;
 
-/* two clock_time_t declaration/instantiations */
-static clock_time_t rtt;
+/* specify the address of the unicast */
+static rimeaddr_t addr;
 
 /* this function has been defined to be called when a unicast is being received */
 static void recv_uc(struct unicast_conn *c, const rimeaddr_t *from)
 {
+  // Round-trip time, will be decremented later
+  clock_time_t rtt = clock_time();
 
   printf("unicast message received from %d.%d\n", from->u8[0], from->u8[1]);
   /* turn on blue led */
@@ -63,6 +65,19 @@ static void recv_uc(struct unicast_conn *c, const rimeaddr_t *from)
   printf("%d millis ", (1000L * ((uint16_t)tmReceived.time  % CLOCK_SECOND)) / CLOCK_SECOND);
   printf("originator = %d\n", tmReceived.originator);
 
+  // If the packet received is not ours, send it back to the originator
+  if(tmReceived.originator != node_id) {
+    packetbuf_copyfrom(&tmReceived, sizeof(tmSent));
+
+    if(!rimeaddr_cmp(&addr, &rimeaddr_node_addr)) {
+      /* when calling unicast_send, we have to specify the address as the second argument (a pointer to the defined rimeaddr_t struct) */
+      unicast_send(&uc, &addr);
+    }
+    printf("sending packet to %u\n", addr.u8[0]);
+  } else { // Our packet has completed a round-trip
+    rtt -= tmReceived.time;
+    printf("RTT = %d ms\n", (1000L * ((uint16_t)rtt  % CLOCK_SECOND)) / CLOCK_SECOND);
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -75,6 +90,17 @@ PROCESS_THREAD(example_unicast_process, ev, data)
   unicast_open(&uc, 146, &unicast_callbacks);
 
   SENSORS_ACTIVATE(button_sensor);
+
+  // Store the partner node address permanently in addr.
+  /* in case I am node 50, choose 51 as destination.*/
+  if(node_id % 2 == 0) {
+      addr.u8[0] = node_id + 1;
+  }
+  /* In case I am node 51, choose 50, etc */
+  else {
+      addr.u8[0] = node_id - 1;
+  }
+  addr.u8[1] = 0;
 
   while(1){
 	  PROCESS_WAIT_EVENT_UNTIL(ev == sensors_event && data == &button_sensor);
@@ -90,18 +116,6 @@ PROCESS_THREAD(example_unicast_process, ev, data)
 	   */
 	  packetbuf_copyfrom(&tmSent, sizeof(tmSent));
 
-
-	  /* specify the address of the unicast */
-	  rimeaddr_t addr;
-	  /* in case I am node 50, choose 51 as destination.*/
-      if(node_id % 2 == 0) {
-          addr.u8[0] = node_id + 1;
-      }
-      /* In case I am node 51, choose 50, etc */
-      else {
-          addr.u8[0] = node_id - 1;
-      }
-	  addr.u8[1] = 0;
 	  if(!rimeaddr_cmp(&addr, &rimeaddr_node_addr)) {
 		  /* when calling unicast_send, we have to specify the address as the second argument (a pointer to the defined rimeaddr_t struct) */
 		  unicast_send(&uc, &addr);
