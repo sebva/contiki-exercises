@@ -28,6 +28,8 @@ static struct timeMessage tmSent;
 
 static clock_time_t rtt;
 
+static rimeaddr_t addr;
+
 struct timeMessage {
 	clock_time_t time;
 	unsigned short originator;
@@ -54,6 +56,17 @@ static void recv_runicast(struct runicast_conn *c, rimeaddr_t *from, uint8_t seq
   printf("originator = %d\n", tmReceived.originator);
   leds_on(LEDS_BLUE);
   ctimer_set(&ledTimer, CLOCK_SECOND / 8, timerCallback_turnOffLeds, NULL);
+
+  // If the packet received is not ours, send it back to the originator
+  if(tmReceived.originator != node_id) {
+    packetbuf_copyfrom(&tmReceived, sizeof(tmSent));
+
+    runicast_send(&runicast, &addr, MAX_RETRANSMISSIONS);
+    printf("sending packet to %u\n", addr.u8[0]);
+  } else { // Our packet has completed a round-trip
+    rtt -= tmReceived.time;
+    printf("RTT = %d ms\n", (1000L * ((uint16_t)rtt  % CLOCK_SECOND)) / CLOCK_SECOND);
+  }
 }
 
 static void sent_runicast(struct runicast_conn *c, rimeaddr_t *to, uint8_t retransmissions)
@@ -73,6 +86,15 @@ PROCESS_THREAD(test_runicast_process, ev, data)
 
   runicast_open(&runicast, RUNICAST_CHANNEL, &runicast_callbacks);
 
+  if(node_id % 2 == 0) {
+    addr.u8[0] = node_id + 1;
+  }
+  /* In case I am node 51, choose 50, etc */
+  else {
+    addr.u8[0] = node_id - 1;
+  }
+  addr.u8[1] = 0;
+
   SENSORS_ACTIVATE(button_sensor);
   while(1) {
   		PROCESS_WAIT_EVENT_UNTIL(ev == sensors_event && data == &button_sensor);
@@ -87,19 +109,10 @@ PROCESS_THREAD(test_runicast_process, ev, data)
   		 */
   		packetbuf_copyfrom(&tmSent, sizeof(tmSent));
 
-  	    rimeaddr_t addr;
 
-  		if(node_id % 2 == 0) {
-  			addr.u8[0] = node_id + 1;
-  		}
-  		/* In case I am node 51, choose 50, etc */
-  		else {
-  		    addr.u8[0] = node_id - 1;
-  		}
-  	    addr.u8[1] = 0;
-  	    /* when calling runicast_send, we have to specify the address as the second argument (a pointer to the defined rimeaddr_t struct)
-  	     * and then also the number of maximum transmissions */
-  	    runicast_send(&runicast, &addr, MAX_RETRANSMISSIONS);
+      /* when calling runicast_send, we have to specify the address as the second argument (a pointer to the defined rimeaddr_t struct)
+       * and then also the number of maximum transmissions */
+      runicast_send(&runicast, &addr, MAX_RETRANSMISSIONS);
   }
 
   PROCESS_END();
