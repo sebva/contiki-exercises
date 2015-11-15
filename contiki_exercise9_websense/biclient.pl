@@ -27,10 +27,10 @@ if ($kidpid) {
     # parent copies the socket to standard output
     while (defined ($line = <$handle>)) {
         print STDOUT "RECV from node: " . $line;
-	if (index($line, 'lightvaluechange') != -1) {
-		# An intruder was detected
-		sendEmail();
-	}
+        if (index($line, 'lightvaluechange') != -1) {
+            # An intruder was detected
+            sendEmail();
+        }
     }
     kill("TERM" => $kidpid);        # send SIGTERM to child
 }
@@ -48,7 +48,7 @@ sub sendEmail {
     my $receiver        = "seb.vaucher\@gmail.com";
     my $subject         = "Light Activity Alert";
     my $message         = "Someone just switched the light in the room with your sensor!\n";
- rss.vaucher.
+
     system("perl sendEmail.pm -f $receiver -t $receiver -u \"$subject\" -m \"$message\" -s pi.home.vaucher.org:25");
 }
 
