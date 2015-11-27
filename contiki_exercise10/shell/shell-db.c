@@ -37,13 +37,16 @@ PROCESS_THREAD(sense_process, ev, data) {
 	SENSORS_ACTIVATE(light_sensor);
 	SENSORS_ACTIVATE(sht11_sensor);
 	static int i=INTERVAL;
+	static char query[50];
 
 	while (1) {
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
 		etimer_reset(&timer);
-		/************************/
-		// INSERT/ALTER CODE HERE
-		/************************/
+
+		sprintf(query, "INSERT (%d, %d, %d) INTO samples;", i, get_light(), get_temp());
+		result = db_query(&handle, query);
+		printf("Inserting sensor values: %s\n", db_get_result_message(result));
+
 		i+=INTERVAL;
 	}
 
