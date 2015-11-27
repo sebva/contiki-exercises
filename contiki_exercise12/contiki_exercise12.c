@@ -130,6 +130,8 @@ PROCESS_THREAD(download_and_execute_process, ev, data)
     printf("originator: %u\n", filenameOriginatorRecv.originator);
     printf("filename: %s\n", filename_download);
 
+    runReceivedProgram();
+
     PROCESS_END();
 }
 
