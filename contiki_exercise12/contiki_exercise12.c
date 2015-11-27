@@ -42,7 +42,7 @@ static const struct runicast_callbacks runicast_callbacks = {request_recv, reque
 static struct runicast_conn runicastSendCommand;
 #define RUNICAST_CHANNEL_SENDCOMMAND  100
 
-
+int (*keep)(void) = etimer_expired;
 // struct which is used to initiate file transmission
 struct fileOrigStruct {
 	char name[20];
