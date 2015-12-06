@@ -78,16 +78,23 @@ helloworld_handler(void* request, void* response, uint8_t *buffer, uint16_t pref
 }
 
 /**************************************************************************************/
-/* Sensor Network Lecture: add and define resource here!
+/* Sensor Network Lecture: add and define resource here! */
 
-RESOURCE(<?>);
+RESOURCE(redled, METHOD_GET, "redled", "title=\"Red LED\";rt=\"Toggle LED and return light sensor values as JSON\"");
 void
 redled_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
-	// define actions here!
+  leds_toggle(LEDS_RED);
+
+  uint16_t light_photosynthetic = light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC);
+  uint16_t light_solar = light_sensor.value(LIGHT_SENSOR_TOTAL_SOLAR);
+
+  REST.set_header_content_type(response, REST.type.APPLICATION_JSON);
+  snprintf((char *)buffer, REST_MAX_CHUNK_SIZE, "{'light':{'photosynthetic':%u,'solar':%u}}", light_photosynthetic, light_solar);
+
+  REST.set_response_payload(response, buffer, strlen((char *)buffer));
 }
 
-*/
 /**************************************************************************************/
 
 /*A simple actuator example, depending on the color query parameter and post variable mode, corresponding led is activated or deactivated*/
@@ -321,6 +328,7 @@ PROCESS_THREAD(rest_server_example, ev, data)
   rest_activate_resource(&resource_toggle);
   SENSORS_ACTIVATE(light_sensor);
   rest_activate_resource(&resource_light);
+  rest_activate_resource(&resource_redled);
   SENSORS_ACTIVATE(radio_sensor);
   rest_activate_resource(&resource_radio);
 
