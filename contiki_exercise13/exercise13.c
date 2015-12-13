@@ -12,9 +12,6 @@
 #include "dev/cc2420_const.h"
 
 #include "dev/radio.h"
-/*---------------------------------------------------------------------------*/
-PROCESS(radio_wake_process, "Radio Wake Process");
-/*---------------------------------------------------------------------------*/
 
 #define NETSTACK_RADIO NETSTACK_CONF_RADIO
 
@@ -22,35 +19,10 @@ PROCESS(radio_wake_process, "Radio Wake Process");
 #define T_SLEEP 	CLOCK_SECOND * 4
 #define T_WAIT_MAX 	CLOCK_SECOND * 1
 
-static struct etimer timer;
-static struct etimer wait_timer;
 
-PROCESS_THREAD(radio_wake_process, ev, data)
-{
-	PROCESS_BEGIN();
-	while(1) {
-		NETSTACK_RADIO.on();
-		leds_on(LEDS_BLUE);
-		leds_off(LEDS_RED);
-		etimer_set(&timer, T_AWAKE);
-		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+void radio_wake_eventhandler();
 
-		etimer_set(&timer, T_SLEEP);
-		if(!NETSTACK_RADIO.channel_clear()) {
-			etimer_set(&wait_timer, T_WAIT_MAX);
-			PROCESS_WAIT_EVENT_UNTIL(NETSTACK_RADIO.channel_clear() || etimer_expired(&wait_timer));
-		}
-
-		NETSTACK_RADIO.off();
-		leds_off(LEDS_BLUE);
-		leds_on(LEDS_RED);
-		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-	}
-	PROCESS_END();
-}
-
-/*** Static enumeration which holds the states
-
+// Static enumeration which holds the states
 static enum {
 	ON,
 	WAITING,
@@ -59,13 +31,46 @@ static enum {
 
 static struct ctimer timer;
 
-//the event handler method
+void switch_radio_on() {
+    printf("Switching radio ON\n"),
+    NETSTACK_RADIO.on();
+    leds_on(LEDS_BLUE);
+    leds_off(LEDS_RED);
+}
 
+void switch_radio_off() {
+    printf("Switching radio OFF\n"),
+    NETSTACK_RADIO.off();
+    leds_on(LEDS_RED);
+    leds_off(LEDS_BLUE);
+}
+
+void schedule(uint16_t interval) {
+    ctimer_set(&timer, interval, radio_wake_eventhandler, NULL);
+}
+
+//the event handler method
 void radio_wake_eventhandler() {
+    printf("Enter eventhandler\n");
 	switch (state) {
-		//based on the finite state model, implement the radio wake process using an event handler
-		//HINT: setting a timer without blocking can be achieved using the function
-		//      ctimer_set(&timer, TIMEINTERVAL, radio_wake_eventhandler, NULL);
+	case ON:
+	    if(!NETSTACK_RADIO.channel_clear()) {
+	        state = WAITING;
+	        // Should change to OFF earlier if channel is clear earlier than the timer
+	        schedule(T_WAIT_MAX);
+	        break;
+        }
+        // no break
+	case WAITING:
+	    switch_radio_off();
+	    state = OFF;
+	    schedule(T_SLEEP);
+	    break;
+	case OFF:
+	    switch_radio_on();
+	    state = ON;
+	    schedule(T_AWAKE);
+	    break;
 	}
 }
 
@@ -73,9 +78,10 @@ PROCESS(radio_wake_eventhandler_process, "Radio Wake Process based on event hand
 PROCESS_THREAD(radio_wake_eventhandler_process, ev, data)
 {
 	PROCESS_BEGIN();
+	state = OFF;
+	printf("Start radio_wake_eventhandler_process process\n");
+	ctimer_set(&timer, T_SLEEP, radio_wake_eventhandler, NULL);
 	PROCESS_END();
 }
 
-*/
-
-AUTOSTART_PROCESSES(&radio_wake_process);
+AUTOSTART_PROCESSES(&radio_wake_eventhandler_process);
